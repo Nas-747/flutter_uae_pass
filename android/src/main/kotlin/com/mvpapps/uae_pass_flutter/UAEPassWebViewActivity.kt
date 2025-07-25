@@ -45,7 +45,6 @@ class UAEPassWebViewActivity : Activity() {
         authUrl = intent.getStringExtra(EXTRA_AUTH_URL)
         redirectUri = intent.getStringExtra(EXTRA_REDIRECT_URI)
         scheme = intent.getStringExtra(EXTRA_SCHEME)
-        
         // Set up WebView
         setupWebView()
         
@@ -138,13 +137,44 @@ class UAEPassWebViewActivity : Activity() {
             return true
         }
         
-        // Check for custom scheme (UAE Pass app launch)
-        if (url.startsWith("uaepass://")) {
+        // Determine the correct scheme to use
+        val targetScheme = scheme?.takeIf { it.isNotBlank() } ?: "uaepass"
+        
+        //the url is returned as uaepassstg even for the staging environment
+        // so we need to fix it to uaepassstg if the target scheme is uaepassstg
+        // or uaepass if the target scheme is uaepass
+        val fixedUrl = when {
+            url.startsWith("uaepass://") && targetScheme == "uaepassstg" -> {
+                url.replace("uaepass://", "uaepassstg://")
+            }
+            url.startsWith("uaepassstg://") && targetScheme == "uaepass" -> {
+                url.replace("uaepassstg://", "uaepass://")
+            }
+            else -> url
+        }
+        
+        if (fixedUrl.startsWith("uaepass://") || fixedUrl.startsWith("uaepassstg://")) {
             try {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fixedUrl)).apply {
+                    // Add FLAG_ACTIVITY_NEW_TASK to avoid Activity not found exception
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
                 startActivity(intent)
             } catch (e: Exception) {
-                Toast.makeText(this, "UAE Pass app not found", Toast.LENGTH_SHORT).show()
+                // Try the other scheme if the first attempt fails
+                val fallbackUrl = if (fixedUrl.startsWith("uaepass://")) {
+                    fixedUrl.replace("uaepass://", "uaepassstg://")
+                } else {
+                    fixedUrl.replace("uaepassstg://", "uaepass://")
+                }
+                try {
+                    val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse(fallbackUrl)).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    startActivity(fallbackIntent)
+                } catch (e2: Exception) {
+                    Toast.makeText(this, "UAE Pass app not found", Toast.LENGTH_SHORT).show()
+                }
             }
             return true
         }

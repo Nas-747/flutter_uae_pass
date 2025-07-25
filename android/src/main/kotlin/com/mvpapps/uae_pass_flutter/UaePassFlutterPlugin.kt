@@ -130,10 +130,14 @@ class UaePassFlutterPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         } else if (call.method == "sign_in") {
             /** Login with UAE Pass using custom full screen webview */
             val authUrl = buildAuthUrl()
+            // Make sure scheme is not null and has a value
+            val currentScheme = scheme ?: "uaepass"  // Default to production if null
+            
             val intent = Intent(activity, UAEPassWebViewActivity::class.java).apply {
                 putExtra(UAEPassWebViewActivity.EXTRA_AUTH_URL, authUrl)
                 putExtra(UAEPassWebViewActivity.EXTRA_REDIRECT_URI, redirect_url)
-                putExtra(UAEPassWebViewActivity.EXTRA_SCHEME, scheme)
+                // Explicitly convert to String to avoid any potential null issues
+                putExtra(UAEPassWebViewActivity.EXTRA_SCHEME, currentScheme.toString())
             }
 
             activity?.startActivityForResult(intent, 1001)
